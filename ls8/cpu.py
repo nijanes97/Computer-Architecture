@@ -2,12 +2,26 @@
 
 import sys
 
+HLT = 0b00000001
+LDI = 0b10000010
+PRN = 0b01000111
+
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.reg = [0] * 8
+        self.ram = [0] * 256
+
+        self.pc = self.reg[0]
+
+
+    def ram_read(self, address):
+        return self.ram[address]
+
+    def ram_write(self, address, value):
+        self.ram[address] = value
 
     def load(self):
         """Load a program into memory."""
@@ -62,4 +76,24 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+        running = True
+
+        while running:
+            IR = self.ram[self.pc]
+
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
+
+            if IR == HLT:
+                running = False
+            elif IR == LDI:
+                self.reg[operand_a] = operand_b
+                self.pc += 2
+            elif IR == PRN:
+                print(self.reg[operand_a])
+                self.pc += 1
+            else:
+                print(f"Invalid Command {IR}")
+                sys.exit(1)
+            
+            self.pc += 1
