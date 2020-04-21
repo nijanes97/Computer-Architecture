@@ -16,6 +16,13 @@ class CPU:
 
         self.pc = self.reg[0]
 
+        self.commands = {
+            0b00000001: self.HLT,
+            0b10000010: self.LDI,
+            0b01000111: self.PRN,
+            0b10100010: self.MUL
+        }
+
 
     def ram_read(self, address):
         return self.ram[address]
@@ -23,25 +30,49 @@ class CPU:
     def ram_write(self, address, value):
         self.ram[address] = value
 
+    def HLT(self, operand_a, operand_b):
+        return (0, False)
+
+    def LDI(self, operand_a, operand_b):
+        self.reg[operand_a] = operand_b
+        return (2, True)
+    
+    def PRN(self, operand_a, operand_b):
+        print(self.reg[operand_a])
+        return (1, True)
+
+    def MUL(self, operand_a, operand_b):
+        self.alu("MUL", operand_a, operand_b)
+        return (2, True)
+
     def load(self):
         """Load a program into memory."""
 
         address = 0
 
-        # For now, we've just hardcoded a program:
+        # # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
 
-        for instruction in program:
-            self.ram[address] = instruction
+        f = open(sys.argv[1])
+
+        for line in f:
+            command = line.split('#')
+            number = command[0].strip()
+
+            if number == '':
+                continue
+            
+            value = int(number, 2)
+            self.ram_write(address, value)
             address += 1
 
 
@@ -51,6 +82,8 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -84,14 +117,10 @@ class CPU:
             operand_a = self.ram_read(self.pc + 1)
             operand_b = self.ram_read(self.pc + 2)
 
-            if IR == HLT:
-                running = False
-            elif IR == LDI:
-                self.reg[operand_a] = operand_b
-                self.pc += 2
-            elif IR == PRN:
-                print(self.reg[operand_a])
-                self.pc += 1
+            if IR in self.commands:
+                output = self.commands[IR](operand_a, operand_b)
+                running = output[1]
+                self.pc += output[0]
             else:
                 print(f"Invalid Command {IR}")
                 sys.exit(1)
