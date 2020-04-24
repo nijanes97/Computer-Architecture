@@ -15,12 +15,19 @@ class CPU:
         self.ram = [0] * 256
 
         self.pc = self.reg[0]
+        self.flag = 0
+        self.pointstack = 0
 
         self.commands = {
             0b00000001: self.HLT,
             0b10000010: self.LDI,
             0b01000111: self.PRN,
-            0b10100010: self.MUL
+            0b10100010: self.MUL,
+            0b10100000: self.ADD,
+            0b01000101: self.push,
+            0b01000110: self.pop,
+            0b01010000: self.call,
+            0b00010001: self.ret
         }
 
 
@@ -35,15 +42,43 @@ class CPU:
 
     def LDI(self, operand_a, operand_b):
         self.reg[operand_a] = operand_b
-        return (2, True)
+        return (self.pc + 3, True)
     
     def PRN(self, operand_a, operand_b):
         print(self.reg[operand_a])
-        return (1, True)
+        return (self.pc + 2, True)
 
     def MUL(self, operand_a, operand_b):
         self.alu("MUL", operand_a, operand_b)
-        return (2, True)
+        return (self.pc + 3, True)
+
+    def ADD(self, operand_a, operand_b):
+        self.alu("ADD", operand_a, operand_b)
+        return (self.pc + 3, True)
+
+    def push(self, operand_a, operand_b):
+        self.pointstack += 1
+        temp = self.reg[operand_a]
+        self.ram_write(self.pointstack, temp)
+        return (self.pc + 2, True)
+
+    def pop(self, operand_a, operand_b):
+        temp = self.ram_read(self.pointstack)
+        self.reg[operand_a] = temp
+        self.pointstack -= 1
+
+        return (self.pc + 2, True)
+
+    def call(self, operand_a, operand_b): 
+        target = self.ram_read(self.pc + 1)
+        self.pointstack -= 1
+        self.ram_write(self.pointstack, self.pc + 2)
+        return (self.reg[target], True)
+
+    def ret(self, operand_a, operand_b):
+        value = self.ram_read(self.pointstack)
+        self.pointstack += 1
+        return (value, True)
 
     def load(self):
         """Load a program into memory."""
@@ -68,7 +103,7 @@ class CPU:
             command = line.split('#')
             number = command[0].strip()
 
-            if number == '':
+            if number == '' or number == '#':
                 continue
             
             value = int(number, 2)
@@ -120,9 +155,7 @@ class CPU:
             if IR in self.commands:
                 output = self.commands[IR](operand_a, operand_b)
                 running = output[1]
-                self.pc += output[0]
+                self.pc = output[0]
             else:
                 print(f"Invalid Command {IR}")
                 sys.exit(1)
-            
-            self.pc += 1
